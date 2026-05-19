@@ -299,6 +299,7 @@ Dieses Feature sorgt dafuer, dass neue Nutzerinnen und Nutzer beim ersten Start 
 ## Implementierte Dateien
 
 - `app/src/main/java/at/ac/hcw/procrastinot/di/DataModules.kt`
+- `app/src/main/java/at/ac/hcw/procrastinot/data/DefaultTaskRepository.kt`
 - `docs/kotlin-beginner-explanations.md`
 
 ## Geaenderte Klassen/Funktionen
@@ -308,6 +309,7 @@ Dieses Feature sorgt dafuer, dass neue Nutzerinnen und Nutzer beim ersten Start 
 - `DatabaseModule.seedInitialTasks(...)`
 - `InitialTask`
 - `INITIAL_TASKS`
+- `DefaultTaskRepository.refresh()`
 
 ## Technische Umsetzung
 
@@ -320,6 +322,8 @@ Dieses Feature sorgt dafuer, dass neue Nutzerinnen und Nutzer beim ersten Start 
 7. Wenn bereits User-Tasks existieren, wird nichts eingefuegt und nichts geloescht.
 8. Danach wird `initial_tasks_seeded` auf `true` gesetzt, damit spaetere App-Starts keine Duplikate erzeugen.
 9. Die Inserts laufen in einer Datenbanktransaktion. Entweder werden alle Seed-Tasks eingefuegt oder keiner.
+10. `DefaultTaskRepository.refresh()` fuegt Remote-/Fake-Network-Tasks jetzt per `upsertAll` hinzu, ohne vorher die lokale Tabelle zu leeren.
+11. Dadurch bleiben Seed-Tasks und User-Tasks auch dann sichtbar, wenn der Benutzer im Tasks-Screen manuell Refresh ausloest.
 
 Datenfluss:
 
@@ -333,6 +337,7 @@ App startet
 -> Default-Tasks einfuegen, falls noch nicht seeded und leer
 -> TasksScreen beobachtet Room Flow
 -> Seed-Tasks erscheinen in der Liste
+-> Refresh fuegt Remote-Tasks hinzu, loescht aber lokale Tasks nicht
 ```
 
 ## Kotlin-Erklaerung
@@ -343,6 +348,7 @@ App startet
 - `forEach`: Fuehrt fuer jeden Seed-Task ein Insert aus.
 - `try/finally`: Stellt sicher, dass `endTransaction()` immer aufgerufen wird.
 - `use`: Schliesst den Datenbank-Cursor automatisch nach dem Lesen.
+- `upsertAll`: Fuegt Remote-Tasks ein oder aktualisiert sie, ohne andere lokale Tasks zu loeschen.
 
 ## Android-/Compose-Erklaerung
 
@@ -350,6 +356,7 @@ App startet
 - `SupportSQLiteDatabase`: Wird hier fuer einfache SQL-Statements beim Seed genutzt.
 - `SharedPreferences`: Speichert einen kleinen lokalen Boolean, damit das Seeding nur einmal passiert.
 - `Transaction`: Sichert, dass die Seed-Daten konsistent eingefuegt werden.
+- Refresh: Der Refresh-Weg ersetzt die lokale Tabelle nicht mehr komplett, damit lokale Seed- und User-Daten nicht verschwinden.
 - Compose musste nicht angepasst werden, weil der `TasksScreen` bereits den Room-Flow beobachtet.
 
 ## Warum diese Loesung?
@@ -358,6 +365,7 @@ App startet
 - Es werden keine neuen Libraries und keine neuen Architektur-Layer eingefuehrt.
 - Bestehende User-Daten werden nicht geloescht oder ueberschrieben.
 - Seed-Daten werden nicht dupliziert, weil ein persistenter Boolean den Seed-Vorgang sperrt.
+- Refresh loescht keine lokalen Daten mehr, damit Seed-Tasks nach einem manuellen Refresh erhalten bleiben.
 - Die Tasks erscheinen automatisch in der bestehenden UI, weil Room bereits per Flow beobachtet wird.
 
 ## Wichtige Pruefungs-/Professor-Erklaerungen
@@ -366,6 +374,7 @@ App startet
 - `SharedPreferences` verhindert doppelte Seed-Ausfuehrungen.
 - Die Tabelle wird zuerst gezaehlt, damit bestehende User-Tasks nicht ueberschrieben werden.
 - Die Transaktion verhindert halb eingefuegte Seed-Daten.
+- `refresh()` leert die lokale Tabelle nicht mehr, sondern merged Remote-Tasks per `upsertAll`.
 - Die UI musste nicht geaendert werden, weil sie bereits reaktiv auf Room-Daten reagiert.
 
 # Backlog Item: MAD-05 - Update the Statistics screen UI

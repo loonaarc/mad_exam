@@ -155,15 +155,14 @@ class DefaultTaskRepository @Inject constructor(
      */
 
     /**
-     * Delete everything in the local data source and replace it with everything from the network
-     * data source.
+     * Load tasks from the network data source and merge them into the local data source.
      *
-     * `withContext` is used here in case the bulk `toLocal` mapping operation is complex.
+     * The local table is not cleared here because the app can contain first-launch seed tasks or
+     * user-created tasks that should not disappear when the user taps refresh.
      */
     override suspend fun refresh() {
         withContext(dispatcher) {
             val remoteTasks = networkDataSource.loadTasks()
-            localDataSource.deleteAll()
             localDataSource.upsertAll(remoteTasks.toLocal())
         }
     }
