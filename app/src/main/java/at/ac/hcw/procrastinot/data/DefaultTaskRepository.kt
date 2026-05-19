@@ -74,6 +74,11 @@ class DefaultTaskRepository @Inject constructor(
         saveTasksToNetwork()
     }
 
+    override suspend fun updateCompleted(taskId: String, completed: Boolean) {
+        localDataSource.updateCompleted(taskId, completed)
+        saveTasksToNetwork()
+    }
+
     override suspend fun getTasks(forceUpdate: Boolean): List<Task> {
         if (forceUpdate) {
             refresh()

@@ -39,6 +39,8 @@ interface TaskRepository {
 
     suspend fun updateTask(taskId: String, title: String, description: String)
 
+    suspend fun updateCompleted(taskId: String, completed: Boolean)
+
     suspend fun clearCompletedTasks()
 
     suspend fun deleteAllTasks()
