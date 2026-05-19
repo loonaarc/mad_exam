@@ -198,3 +198,83 @@ Priority-Chip in Compose
 - Die Migration schuetzt bestehende Daten, weil sie die Tabelle nicht loescht.
 - Das ViewModel ist die Single Source of Truth fuer das Add/Edit-Formular.
 - Die Filterung passiert im `TasksViewModel`, nicht in der Composable-Funktion.
+
+# Backlog Item: MAD-03 - Resolve the statistics-screen crash when no tasks exist
+
+## Urspruengliche Beschreibung
+
+A user reported that the app sometimes crashes when navigating to the Statistics screen.
+
+Acceptance criteria:
+
+- The underlying cause of the crash is identified and fixed.
+- The fix does not introduce regressions when statistics are shown for existing tasks.
+
+## Zweck
+
+Der Statistics-Screen soll auch dann stabil funktionieren, wenn noch keine Aufgaben in der Datenbank vorhanden sind. Ohne diesen Fix kann die App beim Oeffnen der Statistik abstuerzen, obwohl der Screen eigentlich einen Empty-State anzeigen soll.
+
+## Implementierte Dateien
+
+- `app/src/main/java/at/ac/hcw/procrastinot/statistics/StatisticsUtils.kt`
+- `app/src/main/java/at/ac/hcw/procrastinot/statistics/StatisticsViewModel.kt`
+- `docs/kotlin-beginner-explanations.md`
+
+## Geaenderte Klassen/Funktionen
+
+- `getActiveAndCompletedStats(tasks)`
+- `StatisticsViewModel.produceStatisticsUiState(...)`
+
+## Technische Umsetzung
+
+1. Die Ursache lag in `getActiveAndCompletedStats`.
+2. Die Funktion hat vorher `tasks!!` verwendet und danach durch `tasks.size` geteilt.
+3. Wenn die Liste leer war, war `tasks.size` gleich `0`. Eine Division durch `0` fuehrt zum Crash.
+4. Die Funktion prueft jetzt zuerst `tasks.isNullOrEmpty()`.
+5. Fuer `null` oder leere Listen werden `0f` aktive und `0f` erledigte Aufgaben zurueckgegeben.
+6. Fuer vorhandene Tasks wird mit `Float`-Division gerechnet, damit Prozentwerte wie `50.0%` korrekt entstehen.
+7. Das ViewModel verwendet `taskLoad.data.orEmpty()` und braucht dadurch kein riskantes `!!` mehr.
+8. Der vorhandene Empty-State im Compose-Screen bleibt unveraendert und zeigt `statistics_no_tasks`.
+
+Datenfluss:
+
+```text
+Room Flow mit leerer Task-Liste
+-> StatisticsViewModel
+-> getActiveAndCompletedStats(emptyList())
+-> StatsResult(0f, 0f)
+-> StatisticsUiState(isEmpty = true)
+-> StatisticsScreen zeigt Empty-State statt Crash
+```
+
+## Kotlin-Erklaerung
+
+- `!!`: Der Not-null-Operator erzwingt, dass ein Wert nicht null sein darf. Wenn er doch null ist, entsteht ein Crash. Deshalb wurde er hier entfernt.
+- `isNullOrEmpty()`: Diese Kotlin-Funktion prueft gleichzeitig auf `null` und auf eine leere Liste.
+- `orEmpty()`: Wandelt eine nullable Liste in eine normale Liste um. Bei `null` entsteht `emptyList()`.
+- `Float`: Prozentwerte brauchen Kommazahlen. Deshalb wird nicht mehr mit reiner Integer-Division gerechnet.
+- Early Return: Die Funktion gibt bei leerer Liste sofort `0f/0f` zurueck und fuehrt die Prozentrechnung gar nicht erst aus.
+
+## Android-/Compose-Erklaerung
+
+- Der Crash wurde in der Berechnungsschicht behoben, nicht in der UI versteckt.
+- Das ViewModel liefert `isEmpty = true`, wenn keine Tasks vorhanden sind.
+- Compose zeigt dann den vorhandenen Empty-State an.
+- Die Composable-Funktion muss keine Sonderlogik fuer Division durch Null kennen.
+- Das passt zu MVVM: Berechnung im Utility/ViewModel, Anzeige im Composable.
+
+## Warum diese Loesung?
+
+- Sie behebt die echte Ursache: Division durch `0` und riskanter Null-Zugriff.
+- Sie ist minimal-invasiv und veraendert keine Navigation, keine Datenbank und kein UI-Layout.
+- Sie respektiert `agent.md`, weil Business-/Berechnungslogik nicht in Composables verschoben wurde.
+- Bestehende Statistiken fuer vorhandene Tasks funktionieren weiter, jetzt mit korrekter Prozentrechnung.
+- Die Loesung ist leicht in einer Pruefung zu erklaeren.
+
+## Wichtige Pruefungs-/Professor-Erklaerungen
+
+- Der Crash entstand durch eine Division durch `0`, wenn keine Tasks vorhanden waren.
+- Der Fix prueft leere Listen vor der Prozentrechnung.
+- `!!` wurde vermieden, weil es bei unerwartetem `null` einen Crash ausloesen kann.
+- Der Empty-State wird weiterhin vom Compose-Screen angezeigt.
+- Die Prozentrechnung wurde nicht in die UI verschoben, sondern in der Statistiklogik repariert.

@@ -76,9 +76,10 @@ class StatisticsViewModel @Inject constructor(
                 StatisticsUiState(isEmpty = true, isLoading = false)
             }
             is Async.Success -> {
-                val stats = getActiveAndCompletedStats(taskLoad.data)
+                val tasks = taskLoad.data.orEmpty()
+                val stats = getActiveAndCompletedStats(tasks)
                 StatisticsUiState(
-                    isEmpty = taskLoad.data!!.isEmpty(),
+                    isEmpty = tasks.isEmpty(),
                     activeTasksPercent = stats.activeTasksPercent,
                     completedTasksPercent = stats.completedTasksPercent,
                     isLoading = false
