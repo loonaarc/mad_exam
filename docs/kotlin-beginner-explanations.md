@@ -367,3 +367,86 @@ App startet
 - Die Tabelle wird zuerst gezaehlt, damit bestehende User-Tasks nicht ueberschrieben werden.
 - Die Transaktion verhindert halb eingefuegte Seed-Daten.
 - Die UI musste nicht geaendert werden, weil sie bereits reaktiv auf Room-Daten reagiert.
+
+# Backlog Item: MAD-05 - Update the Statistics screen UI
+
+## Urspruengliche Beschreibung
+
+The current Statistics screen does not match the provided reference design.
+
+Acceptance criteria:
+
+- The Statistics screen layout matches the provided reference mockup.
+- The screen works correctly when tasks exist and when no tasks exist.
+
+## Zweck
+
+Der Statistics-Screen soll die aktiven und erledigten Aufgaben nicht mehr als einfache Textzeilen anzeigen. Stattdessen sollen zwei gut sichtbare farbige Bereiche angezeigt werden, damit die Prozentwerte schneller erfasst werden koennen.
+
+## Implementierte Dateien
+
+- `app/src/main/java/at/ac/hcw/procrastinot/statistics/StatisticsScreen.kt`
+- `app/src/main/res/values/strings.xml`
+- `docs/kotlin-beginner-explanations.md`
+
+## Geaenderte Klassen/Funktionen
+
+- `StatisticsContent(...)`
+- `StatisticsCard(...)`
+- `StatisticsContentEmptyPreview()`
+- `statistics_active_tasks_label`
+- `statistics_completed_tasks_label`
+
+## Technische Umsetzung
+
+1. Die bestehende ViewModel-Logik bleibt unveraendert.
+2. `StatisticsContent` bekommt weiterhin `activeTasksPercent` und `completedTasksPercent`.
+3. Statt zwei einfachen `Text`-Zeilen werden zwei `StatisticsCard`-Bereiche angezeigt.
+4. Die erste Karte ist orange und zeigt die aktiven Tasks.
+5. Die zweite Karte ist gruen und zeigt die erledigten Tasks.
+6. Jede Karte zeigt oben ein kleines Label und darunter die Prozentzahl als groesseren fetten Text.
+7. Der Empty-State bleibt erhalten. Wenn keine Tasks existieren, zeigt `LoadingContent` weiter `statistics_no_tasks`.
+8. Die Preview fuer den Empty-State ruft jetzt direkt `StatisticsContent` auf, damit sie keine Hilt-ViewModel-Instanz braucht.
+
+Datenfluss:
+
+```text
+Room Flow
+-> StatisticsViewModel
+-> StatisticsUiState(activeTasksPercent, completedTasksPercent, isEmpty)
+-> StatisticsScreen
+-> StatisticsContent
+-> StatisticsCard fuer Active und Completed
+```
+
+## Kotlin-Erklaerung
+
+- `@StringRes`: Markiert Parameter, die eine String-Resource-ID erwarten.
+- `private val`: Die Farben sind private Konstanten in der Datei und werden nur fuer diesen Screen verwendet.
+- `String.format`: `"%.1f%%".format(percent)` formatiert die Prozentzahl mit einer Nachkommastelle.
+- Wiederverwendbare Funktion: `StatisticsCard` vermeidet doppelten Code fuer die beiden fast gleichen Statistikbereiche.
+
+## Android-/Compose-Erklaerung
+
+- `Surface`: Zeichnet den farbigen Hintergrund der Statistikbereiche.
+- `RoundedCornerShape`: Gibt den Bereichen leicht abgerundete Ecken wie im Mockup.
+- `Column`: Ordnet Label und Prozentzahl vertikal an.
+- `Arrangement.spacedBy`: Setzt gleichmaessigen Abstand zwischen den beiden Karten.
+- `LoadingContent`: Behaelt das bestehende Verhalten fuer Loading und Empty-State.
+- Recomposition: Wenn sich die Prozentwerte im State aendern, zeichnet Compose die Karten neu.
+
+## Warum diese Loesung?
+
+- Sie ist UI-fokussiert und laesst Statistikberechnung, Repository und Datenbank unveraendert.
+- Sie folgt dem vorhandenen Compose-Aufbau mit `Scaffold`, `StatisticsTopAppBar` und `LoadingContent`.
+- Sie verwendet Material-Compose-Bausteine, die bereits im Projekt vorhanden sind.
+- Sie bleibt minimal und pruefungsfreundlich: zwei Karten, zwei Labels, keine neue Navigation.
+- Sie funktioniert fuer vorhandene Tasks und nutzt den bestehenden Empty-State fuer keine Tasks.
+
+## Wichtige Pruefungs-/Professor-Erklaerungen
+
+- Die ViewModel-Daten wurden nicht veraendert, nur die Darstellung.
+- `StatisticsCard` ist eine kleine wiederverwendbare Composable-Funktion.
+- Die Farben orientieren sich am Mockup: orange fuer aktive Tasks, gruen fuer completed Tasks.
+- Der Empty-State wurde nicht entfernt und bleibt ueber `LoadingContent` erreichbar.
+- UI-Logik bleibt im Composable; Berechnungslogik bleibt im ViewModel/Utility.
