@@ -278,3 +278,92 @@ Room Flow mit leerer Task-Liste
 - `!!` wurde vermieden, weil es bei unerwartetem `null` einen Crash ausloesen kann.
 - Der Empty-State wird weiterhin vom Compose-Screen angezeigt.
 - Die Prozentrechnung wurde nicht in die UI verschoben, sondern in der Statistiklogik repariert.
+
+# Backlog Item: MAD-04 - Seed the database with initial tasks
+
+## Urspruengliche Beschreibung
+
+The app currently starts without predefined task data. The database should be seeded with default tasks when the app is used for the first time.
+
+Acceptance criteria:
+
+- The database is populated with initial task data on first app launch.
+- Seed data is inserted only once and is not duplicated on later launches.
+- Existing user-created tasks are not overwritten or deleted.
+- The seeded tasks are visible on the Tasks screen after the app starts.
+
+## Zweck
+
+Dieses Feature sorgt dafuer, dass neue Nutzerinnen und Nutzer beim ersten Start direkt Beispielaufgaben sehen. Die App wirkt dadurch nicht leer, und die vorhandenen Listen-, Filter- und Statistikfunktionen koennen sofort ausprobiert werden.
+
+## Implementierte Dateien
+
+- `app/src/main/java/at/ac/hcw/procrastinot/di/DataModules.kt`
+- `docs/kotlin-beginner-explanations.md`
+
+## Geaenderte Klassen/Funktionen
+
+- `DatabaseModule.provideDataBase(...)`
+- `DatabaseModule.taskTableIsEmpty(...)`
+- `DatabaseModule.seedInitialTasks(...)`
+- `InitialTask`
+- `INITIAL_TASKS`
+
+## Technische Umsetzung
+
+1. Die Seed-Logik sitzt dort, wo die Room-Datenbank erstellt wird: in `DatabaseModule`.
+2. Beim Oeffnen der Datenbank wird ein `RoomDatabase.Callback` ausgefuehrt.
+3. `SharedPreferences` speichert mit `initial_tasks_seeded`, ob der Seed-Vorgang schon erledigt wurde.
+4. Wenn dieser Wert bereits `true` ist, passiert nichts.
+5. Wenn der Wert noch `false` ist, wird geprueft, ob die Tabelle `task` leer ist.
+6. Nur bei leerer Tabelle werden drei Default-Tasks eingefuegt.
+7. Wenn bereits User-Tasks existieren, wird nichts eingefuegt und nichts geloescht.
+8. Danach wird `initial_tasks_seeded` auf `true` gesetzt, damit spaetere App-Starts keine Duplikate erzeugen.
+9. Die Inserts laufen in einer Datenbanktransaktion. Entweder werden alle Seed-Tasks eingefuegt oder keiner.
+
+Datenfluss:
+
+```text
+App startet
+-> Hilt erstellt ToDoDatabase
+-> Room oeffnet Tasks.db
+-> RoomDatabase.Callback.onOpen
+-> SharedPreferences pruefen
+-> task-Tabelle zaehlen
+-> Default-Tasks einfuegen, falls noch nicht seeded und leer
+-> TasksScreen beobachtet Room Flow
+-> Seed-Tasks erscheinen in der Liste
+```
+
+## Kotlin-Erklaerung
+
+- `private const val`: Wird fuer feste Schluessel wie den SharedPreferences-Namen verwendet.
+- `data class InitialTask`: Beschreibt die Seed-Daten klar und typisiert.
+- `listOf(...)`: Erzeugt die feste Liste der Default-Tasks.
+- `forEach`: Fuehrt fuer jeden Seed-Task ein Insert aus.
+- `try/finally`: Stellt sicher, dass `endTransaction()` immer aufgerufen wird.
+- `use`: Schliesst den Datenbank-Cursor automatisch nach dem Lesen.
+
+## Android-/Compose-Erklaerung
+
+- `RoomDatabase.Callback`: Erlaubt Code beim Oeffnen der Datenbank auszufuehren.
+- `SupportSQLiteDatabase`: Wird hier fuer einfache SQL-Statements beim Seed genutzt.
+- `SharedPreferences`: Speichert einen kleinen lokalen Boolean, damit das Seeding nur einmal passiert.
+- `Transaction`: Sichert, dass die Seed-Daten konsistent eingefuegt werden.
+- Compose musste nicht angepasst werden, weil der `TasksScreen` bereits den Room-Flow beobachtet.
+
+## Warum diese Loesung?
+
+- Sie ist minimal-invasiv und nutzt die vorhandene Room-/Hilt-Struktur.
+- Es werden keine neuen Libraries und keine neuen Architektur-Layer eingefuehrt.
+- Bestehende User-Daten werden nicht geloescht oder ueberschrieben.
+- Seed-Daten werden nicht dupliziert, weil ein persistenter Boolean den Seed-Vorgang sperrt.
+- Die Tasks erscheinen automatisch in der bestehenden UI, weil Room bereits per Flow beobachtet wird.
+
+## Wichtige Pruefungs-/Professor-Erklaerungen
+
+- Das Seeding passiert in der Datenbankschicht, nicht im Composable.
+- `SharedPreferences` verhindert doppelte Seed-Ausfuehrungen.
+- Die Tabelle wird zuerst gezaehlt, damit bestehende User-Tasks nicht ueberschrieben werden.
+- Die Transaktion verhindert halb eingefuegte Seed-Daten.
+- Die UI musste nicht geaendert werden, weil sie bereits reaktiv auf Room-Daten reagiert.
