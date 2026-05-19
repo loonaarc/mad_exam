@@ -23,6 +23,7 @@ import at.ac.hcw.procrastinot.ADD_EDIT_RESULT_OK
 import at.ac.hcw.procrastinot.DELETE_RESULT_OK
 import at.ac.hcw.procrastinot.EDIT_RESULT_OK
 import at.ac.hcw.procrastinot.R
+import at.ac.hcw.procrastinot.TodoDestinationsArgs.USER_MESSAGE_ARG
 import at.ac.hcw.procrastinot.data.Task
 import at.ac.hcw.procrastinot.data.TaskPriority
 import at.ac.hcw.procrastinot.data.TaskRepository
@@ -123,11 +124,15 @@ class TasksViewModel @Inject constructor(
     }
 
     fun showEditResultMessage(result: Int) {
+        if (savedStateHandle.get<Int>(USER_MESSAGE_ARG) == 0) {
+            return
+        }
         when (result) {
             EDIT_RESULT_OK -> showSnackbarMessage(R.string.successfully_saved_task_message)
             ADD_EDIT_RESULT_OK -> showSnackbarMessage(R.string.successfully_added_task_message)
             DELETE_RESULT_OK -> showSnackbarMessage(R.string.successfully_deleted_task_message)
         }
+        savedStateHandle[USER_MESSAGE_ARG] = 0
     }
 
     fun snackbarMessageShown() {

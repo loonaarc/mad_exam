@@ -450,3 +450,83 @@ Room Flow
 - Die Farben orientieren sich am Mockup: orange fuer aktive Tasks, gruen fuer completed Tasks.
 - Der Empty-State wurde nicht entfernt und bleibt ueber `LoadingContent` erreichbar.
 - UI-Logik bleibt im Composable; Berechnungslogik bleibt im ViewModel/Utility.
+
+# Backlog Item: MAD-06 - Fix repeated Snackbar after navigation
+
+## Urspruengliche Beschreibung
+
+When adding a task, the Snackbar correctly shows "Task added". However, after navigating to Statistics and returning to the Tasks screen, the Snackbar is shown again.
+
+Acceptance criteria:
+
+- The "Task added" Snackbar is shown only once after a task is added.
+- Navigating away from and back to the Tasks screen does not show the old Snackbar again.
+- Existing Snackbar messages for other task actions continue to work correctly.
+
+## Zweck
+
+Dieses Fix behandelt die Snackbar nach dem Hinzufuegen einer Task als einmaliges UI-Ereignis. Die Meldung soll direkt nach dem Speichern sichtbar sein, aber nicht erneut erscheinen, nur weil der Tasks-Screen durch Navigation wiederhergestellt wird.
+
+## Implementierte Dateien
+
+- `app/src/main/java/at/ac/hcw/procrastinot/tasks/TasksViewModel.kt`
+- `docs/kotlin-beginner-explanations.md`
+
+## Geaenderte Klassen/Funktionen
+
+- `TasksViewModel.showEditResultMessage(result)`
+
+## Technische Umsetzung
+
+1. Der Add/Edit-Screen navigiert nach dem Speichern zurueck zum Tasks-Screen und gibt einen Ergebniswert als `userMessage`-Navigationsargument mit.
+2. `TasksScreen` ruft bei einem Ergebniswert ungleich `0` weiterhin `showEditResultMessage(...)` im ViewModel auf.
+3. `TasksViewModel.showEditResultMessage(...)` prueft jetzt zuerst den `SavedStateHandle`.
+4. Wenn `USER_MESSAGE_ARG` dort bereits `0` ist, wurde das Navigationsresultat schon verbraucht und die Funktion beendet sich sofort.
+5. Wenn das Resultat noch nicht verbraucht wurde, wird wie bisher die passende Snackbar-Message gesetzt.
+6. Danach setzt das ViewModel `USER_MESSAGE_ARG` im `SavedStateHandle` auf `0`.
+7. Wenn der Tasks-Screen spaeter nach Navigation wiederhergestellt wird, kann der alte Parameter zwar noch in der Composable ankommen, das ViewModel zeigt ihn aber nicht erneut an.
+8. Andere Snackbar-Ausloeser wie Checkbox-Aenderungen, Loeschen oder "completed tasks cleared" bleiben unveraendert.
+
+Datenfluss:
+
+```text
+AddEditTaskScreen speichert Task
+-> Navigation zu Tasks mit ADD_EDIT_RESULT_OK
+-> TasksScreen meldet Resultat ans ViewModel
+-> TasksViewModel setzt Snackbar-Text
+-> TasksViewModel setzt USER_MESSAGE_ARG auf 0
+-> Snackbar wird angezeigt
+-> Navigation zu Statistics und zurueck
+-> altes Resultat wird im ViewModel ignoriert
+```
+
+## Kotlin-Erklaerung
+
+- `SavedStateHandle`: Speichert kleine Werte, die zu einem ViewModel und seinem Navigationseintrag gehoeren. Hier wird damit gemerkt, ob das Navigationsresultat schon verbraucht wurde.
+- Early Return: `return` beendet die Funktion sofort, wenn kein neues Snackbar-Event mehr verarbeitet werden darf.
+- Nullable Zugriff ueber `savedStateHandle[...]`: Der Zugriff kann `null` liefern, deshalb wird nur exakt `0` als "bereits verbraucht" behandelt.
+- `when`: Ordnet die bekannten Result-Codes den passenden String-Resources fuer die Snackbar zu.
+
+## Android-/Compose-Erklaerung
+
+- Snackbar als Event: Eine Snackbar ist kein dauerhafter Screen-Zustand, sondern ein einmaliges Ereignis.
+- Navigation Arguments: Der Tasks-Screen erhaelt nach Add/Edit/Delete einen Result-Code ueber die Route.
+- Restore State: Beim Navigieren zu Statistics und zurueck kann Compose den alten Tasks-Screen-State wiederherstellen.
+- ViewModel als Event-Besitzer: Das ViewModel entscheidet, ob ein Navigationsresultat noch neu ist oder bereits verbraucht wurde.
+- Recomposition: Selbst wenn Compose neu startet oder neu zusammensetzt, wird ein verbrauchtes Resultat nicht nochmal in eine Snackbar umgewandelt.
+
+## Warum diese Loesung?
+
+- Sie ist minimal-invasiv und aendert weder Navigation noch Screen-Struktur grundlegend.
+- Sie passt zur bestehenden Architektur: Compose meldet Events, das ViewModel verwaltet den UI-State.
+- Sie vermeidet Business- oder Event-Logik in `MainActivity`.
+- Sie repariert die Ursache des wiederholten Events, ohne andere Snackbar-Meldungen zu entfernen.
+- Die Loesung bleibt gut pruefungsfreundlich erklaerbar: Navigationsresultat einmal konsumieren, danach auf `0` setzen.
+
+## Wichtige Pruefungs-/Professor-Erklaerungen
+
+- Die Snackbar wurde doppelt angezeigt, weil ein altes Navigationsresultat beim Restore erneut verarbeitet werden konnte.
+- Das ViewModel speichert jetzt, dass dieses Resultat bereits konsumiert wurde.
+- `SavedStateHandle` ist hier passend, weil das Resultat zum Navigationseintrag des Tasks-Screens gehoert.
+- Andere Snackbar-Aktionen verwenden weiterhin den bestehenden `_userMessage`-Flow.
+- Die UI bleibt reaktiv, aber einmalige Events werden nicht als dauerhaft gueltige Daten behandelt.
