@@ -24,10 +24,14 @@ import at.ac.hcw.procrastinot.DELETE_RESULT_OK
 import at.ac.hcw.procrastinot.EDIT_RESULT_OK
 import at.ac.hcw.procrastinot.R
 import at.ac.hcw.procrastinot.data.Task
+import at.ac.hcw.procrastinot.data.TaskPriority
 import at.ac.hcw.procrastinot.data.TaskRepository
 import at.ac.hcw.procrastinot.tasks.TasksFilterType.ACTIVE_TASKS
 import at.ac.hcw.procrastinot.tasks.TasksFilterType.ALL_TASKS
 import at.ac.hcw.procrastinot.tasks.TasksFilterType.COMPLETED_TASKS
+import at.ac.hcw.procrastinot.tasks.TasksFilterType.HIGH_PRIORITY_TASKS
+import at.ac.hcw.procrastinot.tasks.TasksFilterType.LOW_PRIORITY_TASKS
+import at.ac.hcw.procrastinot.tasks.TasksFilterType.MEDIUM_PRIORITY_TASKS
 import at.ac.hcw.procrastinot.util.Async
 import at.ac.hcw.procrastinot.util.WhileUiSubscribed
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -154,6 +158,15 @@ class TasksViewModel @Inject constructor(
                 COMPLETED_TASKS -> if (task.isCompleted) {
                     tasksToShow.add(task)
                 }
+                HIGH_PRIORITY_TASKS -> if (task.priority == TaskPriority.HIGH) {
+                    tasksToShow.add(task)
+                }
+                MEDIUM_PRIORITY_TASKS -> if (task.priority == TaskPriority.MEDIUM) {
+                    tasksToShow.add(task)
+                }
+                LOW_PRIORITY_TASKS -> if (task.priority == TaskPriority.LOW) {
+                    tasksToShow.add(task)
+                }
             }
         }
         return tasksToShow
@@ -177,6 +190,24 @@ class TasksViewModel @Inject constructor(
                 FilteringUiInfo(
                     R.string.label_completed, R.string.no_tasks_completed,
                     R.drawable.ic_verified_user_96dp
+                )
+            }
+            HIGH_PRIORITY_TASKS -> {
+                FilteringUiInfo(
+                    R.string.label_high_priority, R.string.no_tasks_high_priority,
+                    R.drawable.logo_no_fill
+                )
+            }
+            MEDIUM_PRIORITY_TASKS -> {
+                FilteringUiInfo(
+                    R.string.label_medium_priority, R.string.no_tasks_medium_priority,
+                    R.drawable.logo_no_fill
+                )
+            }
+            LOW_PRIORITY_TASKS -> {
+                FilteringUiInfo(
+                    R.string.label_low_priority, R.string.no_tasks_low_priority,
+                    R.drawable.logo_no_fill
                 )
             }
         }

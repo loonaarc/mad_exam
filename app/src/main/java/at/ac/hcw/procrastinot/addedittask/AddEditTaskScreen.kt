@@ -19,16 +19,20 @@
 package at.ac.hcw.procrastinot.addedittask
 
 import androidx.annotation.StringRes
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -55,6 +59,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import at.ac.hcw.procrastinot.R
+import at.ac.hcw.procrastinot.data.TaskPriority
 import at.ac.hcw.procrastinot.util.AddEditTaskTopAppBar
 
 @Composable
@@ -82,8 +87,10 @@ fun AddEditTaskScreen(
             loading = uiState.isLoading,
             title = uiState.title,
             description = uiState.description,
+            priority = uiState.priority,
             onTitleChanged = viewModel::updateTitle,
             onDescriptionChanged = viewModel::updateDescription,
+            onPriorityChanged = viewModel::updatePriority,
             modifier = Modifier.padding(paddingValues)
         )
 
@@ -110,8 +117,10 @@ private fun AddEditTaskContent(
     loading: Boolean,
     title: String,
     description: String,
+    priority: TaskPriority,
     onTitleChanged: (String) -> Unit,
     onDescriptionChanged: (String) -> Unit,
+    onPriorityChanged: (TaskPriority) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var isRefreshing by remember { mutableStateOf(false) }
@@ -150,6 +159,13 @@ private fun AddEditTaskContent(
                 maxLines = 1,
                 colors = textFieldColors
             )
+            PriorityChips(
+                selectedPriority = priority,
+                onPriorityChanged = onPriorityChanged,
+                modifier = Modifier.padding(
+                    vertical = dimensionResource(id = R.dimen.list_item_padding)
+                )
+            )
             OutlinedTextField(
                 value = description,
                 onValueChange = onDescriptionChanged,
@@ -162,4 +178,49 @@ private fun AddEditTaskContent(
         }
     }
 }
+
+@Composable
+private fun PriorityChips(
+    selectedPriority: TaskPriority,
+    onPriorityChanged: (TaskPriority) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            text = stringResource(id = R.string.priority_label),
+            style = MaterialTheme.typography.titleMedium
+        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(top = dimensionResource(id = R.dimen.list_item_padding))
+        ) {
+            TaskPriority.entries.forEach { priority ->
+                FilterChip(
+                    selected = selectedPriority == priority,
+                    onClick = { onPriorityChanged(priority) },
+                    label = { Text(text = stringResource(id = priorityLabelRes(priority))) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = priorityColor(priority),
+                        selectedLabelColor = Color.White
+                    )
+                )
+            }
+        }
+    }
+}
+
+@StringRes
+private fun priorityLabelRes(priority: TaskPriority): Int =
+    when (priority) {
+        TaskPriority.HIGH -> R.string.priority_high
+        TaskPriority.MEDIUM -> R.string.priority_medium
+        TaskPriority.LOW -> R.string.priority_low
+    }
+
+private fun priorityColor(priority: TaskPriority): Color =
+    when (priority) {
+        TaskPriority.HIGH -> Color(0xFFD32F2F)
+        TaskPriority.MEDIUM -> Color(0xFFF57C00)
+        TaskPriority.LOW -> Color(0xFF1976D2)
+    }
 

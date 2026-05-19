@@ -18,15 +18,27 @@ package at.ac.hcw.procrastinot.data.source.local
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 /**
  * The Room Database that contains the Task table.
  *
  * Note that exportSchema should be true in production databases.
  */
-@Database(entities = [LocalTask::class], version = 1, exportSchema = false)
+@Database(entities = [LocalTask::class], version = 2, exportSchema = false)
 abstract class ToDoDatabase : RoomDatabase() {
 
     abstract fun taskDao(): TaskDao
+
+    companion object {
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE task ADD COLUMN priority INTEGER NOT NULL DEFAULT 2"
+                )
+            }
+        }
+    }
 }
 

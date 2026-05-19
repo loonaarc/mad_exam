@@ -31,6 +31,7 @@ data class Task(
     val title: String = "",
     val description: String = "",
     val isCompleted: Boolean = false,
+    val priority: TaskPriority = TaskPriority.MEDIUM,
     val id: String,
 ) {
 
@@ -42,5 +43,16 @@ data class Task(
 
     val isEmpty
         get() = title.isEmpty() || description.isEmpty()
+}
+
+enum class TaskPriority(val value: Int) {
+    HIGH(1),
+    MEDIUM(2),
+    LOW(3);
+
+    companion object {
+        fun fromValue(value: Int?): TaskPriority =
+            entries.firstOrNull { it.value == value } ?: MEDIUM
+    }
 }
 

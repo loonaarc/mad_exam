@@ -18,8 +18,10 @@ package at.ac.hcw.procrastinot.tasks
 
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
+import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -47,6 +49,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -58,9 +62,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import at.ac.hcw.procrastinot.R
 import at.ac.hcw.procrastinot.TodoTheme
 import at.ac.hcw.procrastinot.data.Task
+import at.ac.hcw.procrastinot.data.TaskPriority
 import at.ac.hcw.procrastinot.tasks.TasksFilterType.ACTIVE_TASKS
 import at.ac.hcw.procrastinot.tasks.TasksFilterType.ALL_TASKS
 import at.ac.hcw.procrastinot.tasks.TasksFilterType.COMPLETED_TASKS
+import at.ac.hcw.procrastinot.tasks.TasksFilterType.HIGH_PRIORITY_TASKS
+import at.ac.hcw.procrastinot.tasks.TasksFilterType.LOW_PRIORITY_TASKS
+import at.ac.hcw.procrastinot.tasks.TasksFilterType.MEDIUM_PRIORITY_TASKS
 import at.ac.hcw.procrastinot.util.LoadingContent
 import at.ac.hcw.procrastinot.util.TasksTopAppBar
 
@@ -85,6 +93,9 @@ fun TasksScreen(
                 onFilterAllTasks = { viewModel.setFiltering(ALL_TASKS) },
                 onFilterActiveTasks = { viewModel.setFiltering(ACTIVE_TASKS) },
                 onFilterCompletedTasks = { viewModel.setFiltering(COMPLETED_TASKS) },
+                onFilterHighPriorityTasks = { viewModel.setFiltering(HIGH_PRIORITY_TASKS) },
+                onFilterMediumPriorityTasks = { viewModel.setFiltering(MEDIUM_PRIORITY_TASKS) },
+                onFilterLowPriorityTasks = { viewModel.setFiltering(LOW_PRIORITY_TASKS) },
                 onClearCompletedTasks = { viewModel.clearCompletedTasks() },
                 onRefresh = { viewModel.refresh() }
             )
@@ -193,20 +204,51 @@ private fun TaskItem(
             checked = task.isCompleted,
             onCheckedChange = onCheckedChange
         )
-        Text(
-            text = task.titleForList,
-            style = MaterialTheme.typography.headlineSmall,
+        Column(
             modifier = Modifier.padding(
                 start = dimensionResource(id = R.dimen.horizontal_margin)
-            ),
-            textDecoration = if (task.isCompleted) {
-                TextDecoration.LineThrough
-            } else {
-                null
+            )
+        ) {
+            Text(
+                text = task.titleForList,
+                style = MaterialTheme.typography.headlineSmall,
+                textDecoration = if (task.isCompleted) {
+                    TextDecoration.LineThrough
+                } else {
+                    null
+                }
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .background(priorityColor(task.priority), CircleShape)
+                )
+                Text(
+                    text = stringResource(id = priorityLabelRes(task.priority)),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = priorityColor(task.priority),
+                    modifier = Modifier.padding(start = 4.dp)
+                )
             }
-        )
+        }
     }
 }
+
+@StringRes
+private fun priorityLabelRes(priority: TaskPriority): Int =
+    when (priority) {
+        TaskPriority.HIGH -> R.string.priority_high
+        TaskPriority.MEDIUM -> R.string.priority_medium
+        TaskPriority.LOW -> R.string.priority_low
+    }
+
+private fun priorityColor(priority: TaskPriority): Color =
+    when (priority) {
+        TaskPriority.HIGH -> Color(0xFFD32F2F)
+        TaskPriority.MEDIUM -> Color(0xFFF57C00)
+        TaskPriority.LOW -> Color(0xFF1976D2)
+    }
 
 @Composable
 private fun TasksEmptyContent(
@@ -240,18 +282,21 @@ private fun TasksContentPreview() {
                         title = "Title 1",
                         description = "Description 1",
                         isCompleted = false,
+                        priority = TaskPriority.HIGH,
                         id = "ID 1"
                     ),
                     Task(
                         title = "Title 2",
                         description = "Description 2",
                         isCompleted = true,
+                        priority = TaskPriority.MEDIUM,
                         id = "ID 2"
                     ),
                     Task(
                         title = "Title 3",
                         description = "Description 3",
                         isCompleted = true,
+                        priority = TaskPriority.LOW,
                         id = "ID 3"
                     ),
                     Task(

@@ -61,7 +61,9 @@ object DatabaseModule {
             context.applicationContext,
             ToDoDatabase::class.java,
             "Tasks.db"
-        ).build()
+        )
+            .addMigrations(ToDoDatabase.MIGRATION_1_2)
+            .build()
     }
 
     @Provides

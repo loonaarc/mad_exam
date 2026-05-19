@@ -34,5 +34,8 @@ data class LocalTask(
     var title: String,
     var description: String,
     var isCompleted: Boolean,
+    var priority: Int = DEFAULT_TASK_PRIORITY,
 )
+
+const val DEFAULT_TASK_PRIORITY = 2
 
