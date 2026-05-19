@@ -123,6 +123,11 @@ class TasksViewModel @Inject constructor(
         )
     }
 
+    fun deleteTask(task: Task) = viewModelScope.launch {
+        taskRepository.deleteTask(task.id)
+        showSnackbarMessage(R.string.successfully_deleted_task_message)
+    }
+
     fun showEditResultMessage(result: Int) {
         if (savedStateHandle.get<Int>(USER_MESSAGE_ARG) == 0) {
             return

@@ -530,3 +530,94 @@ AddEditTaskScreen speichert Task
 - `SavedStateHandle` ist hier passend, weil das Resultat zum Navigationseintrag des Tasks-Screens gehoert.
 - Andere Snackbar-Aktionen verwenden weiterhin den bestehenden `_userMessage`-Flow.
 - Die UI bleibt reaktiv, aber einmalige Events werden nicht als dauerhaft gueltige Daten behandelt.
+
+# Backlog Item: MAD-07 - Add swipe-to-delete on the Tasks screen
+
+## Urspruengliche Beschreibung
+
+Users should be able to delete tasks directly from the Tasks screen using a swipe gesture.
+
+Acceptance criteria:
+
+- Users can swipe left a task item on the Tasks screen to delete it.
+- The deleted task is removed from the database, not only from the current UI state.
+- The Tasks screen updates correctly after deletion.
+- A Snackbar message confirms that the task was deleted.
+- The implementation handles deleting active and completed tasks correctly.
+
+## Zweck
+
+Dieses Feature macht das Loeschen schneller, weil Benutzerinnen und Benutzer nicht erst in den Detail-Screen wechseln muessen. Die Aufgabe wird direkt aus der Liste per Swipe entfernt und dauerhaft aus Room geloescht.
+
+## Implementierte Dateien
+
+- `app/src/main/java/at/ac/hcw/procrastinot/tasks/TasksViewModel.kt`
+- `app/src/main/java/at/ac/hcw/procrastinot/tasks/TasksScreen.kt`
+- `docs/kotlin-beginner-explanations.md`
+
+## Geaenderte Klassen/Funktionen
+
+- `TasksViewModel.deleteTask(task)`
+- `TasksContent(...)`
+- `SwipeToDeleteTaskItem(...)`
+- `DeleteTaskBackground()`
+
+## Technische Umsetzung
+
+1. `TasksViewModel` hat eine neue Funktion `deleteTask(task)` bekommen.
+2. Diese Funktion ruft das bereits vorhandene `TaskRepository.deleteTask(task.id)` auf.
+3. Nach dem Loeschen setzt das ViewModel die bestehende Snackbar-Message `successfully_deleted_task_message`.
+4. `TasksContent` bekommt einen neuen Callback `onTaskDelete`.
+5. In der `LazyColumn` wird jedes Listenelement mit `SwipeToDeleteTaskItem` umschlossen.
+6. `SwipeToDeleteTaskItem` nutzt `SwipeToDismissBox` aus Material 3.
+7. Nur die Richtung `EndToStart` ist aktiviert. Bei Links-Swipe wird `onDelete()` ausgefuehrt.
+8. `DeleteTaskBackground` zeigt beim Wischen einen roten Hintergrund mit Delete-Icon.
+9. Die `LazyColumn` nutzt `key = { it.id }`, damit Compose beim Entfernen eines Elements stabile Listeneintraege hat.
+10. Room sendet nach dem Delete automatisch eine neue Task-Liste, und der Tasks-Screen zeichnet sich neu.
+
+Datenfluss:
+
+```text
+Links-Swipe auf Task-Zeile
+-> SwipeToDismissBox bestaetigt EndToStart
+-> TasksViewModel.deleteTask(task)
+-> TaskRepository.deleteTask(task.id)
+-> TaskDao.deleteById(taskId)
+-> Room entfernt Task aus DB
+-> Room Flow sendet neue Liste
+-> TasksViewModel uiState aktualisiert sich
+-> TasksScreen zeigt Liste ohne geloeschte Task
+-> Snackbar "Task was deleted"
+```
+
+## Kotlin-Erklaerung
+
+- Lambda Callback: `onTaskDelete: (Task) -> Unit` erlaubt der UI, ein Event nach oben ans ViewModel zu melden.
+- `viewModelScope.launch`: Das Loeschen ist ein suspendierender Datenbankzugriff und wird deshalb in einer Coroutine gestartet.
+- `key = { it.id }`: Gibt jedem Listeneintrag eine stabile Identitaet. Das hilft Compose, Animationen und State richtig dem passenden Task zuzuordnen.
+- `when` wurde hier nicht gebraucht, weil nur eine Swipe-Richtung geloescht wird.
+
+## Android-/Compose-Erklaerung
+
+- `SwipeToDismissBox`: Material-Compose-Komponente fuer Wischgesten auf Listenelementen.
+- `rememberSwipeToDismissBoxState`: Speichert den Swipe-Zustand fuer ein einzelnes Listenelement.
+- `confirmValueChange`: Entscheidet, ob ein Swipe wirklich akzeptiert wird. Hier wird nur `EndToStart` als Delete behandelt.
+- `LazyColumn`: Zeigt die Task-Liste effizient an und rendert nur sichtbare Eintraege.
+- `Snackbar`: Die Bestaetigung wird wie bisher ueber den `userMessage`-State des ViewModels angezeigt.
+- Recomposition: Nach dem Loeschen aktualisiert Room den Flow, wodurch Compose automatisch die kuerzere Liste rendert.
+
+## Warum diese Loesung?
+
+- Sie nutzt die bereits vorhandene Delete-Funktion im Repository und im DAO.
+- Sie fuegt keine neue Library und keinen neuen Architektur-Layer hinzu.
+- Business-Logik bleibt im ViewModel, Datenzugriff bleibt im Repository.
+- Die Composable kennt nur das UI-Event "delete", aber nicht die Room-Details.
+- Aktive und erledigte Tasks werden gleich behandelt, weil beide ueber ihre ID geloescht werden.
+
+## Wichtige Pruefungs-/Professor-Erklaerungen
+
+- Der Swipe entfernt die Task nicht nur optisch, sondern loescht sie ueber Repository und Room.
+- Die Liste aktualisiert sich automatisch, weil der Tasks-Screen den Room-Flow beobachtet.
+- `SwipeToDismissBox` ist eine passende Compose-Komponente fuer diese UI-Geste.
+- Die Snackbar wird im ViewModel ausgeloest, nicht direkt in der Task-Zeile.
+- `key = { it.id }` verhindert, dass Compose Swipe-State versehentlich falschen Listenelementen zuordnet.
